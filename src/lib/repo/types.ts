@@ -69,6 +69,8 @@ export interface Repo {
   releasePayment(paymentId: string): Promise<void>;
   unassignedApprovedPaymentsByEmail(email: string): Promise<Payment[]>;
   approvedPaymentsByTransaction(transactionId: string): Promise<Payment[]>;
+  /** Últimos eventos de webhook recebidos (diagnóstico), mais recentes primeiro. */
+  recentPayments(limit: number): Promise<Payment[]>;
 }
 
 export interface Storage {

@@ -136,6 +136,7 @@ const idx = {
   expires: "idx/expires/",
   payEmail: (email: string) => `idx/payemail/${h(email)}/`,
   payTx: (tx: string) => `idx/paytx/${h(tx)}/`,
+  payRecent: "idx/payrecent/",
 };
 const lastSegment = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 
@@ -240,6 +241,7 @@ export const blobRepo: Repo = {
     await Promise.all([
       row.email ? marker(`${idx.payEmail(row.email)}${ts(row.created_at)}_${row.id}`) : null,
       row.transaction_id ? marker(`${idx.payTx(row.transaction_id)}${row.id}`) : null,
+      marker(`${idx.payRecent}${ts(row.created_at)}_${row.id}`),
     ]);
     return row;
   },
@@ -257,6 +259,12 @@ export const blobRepo: Repo = {
     const ids = (await listPathnames(idx.payEmail(email))).map(lastSegment).sort().map((n) => n.split("_")[1]);
     const rows = await Promise.all(ids.map((id) => readJson<Payment>(payPath(id))));
     return rows.flatMap((r) => (r && r.data.status === "approved" && !r.data.generation_id ? [r.data] : []));
+  },
+
+  async recentPayments(limit) {
+    const ids = (await listPathnames(idx.payRecent)).map(lastSegment).sort().reverse().slice(0, limit).map((n) => n.split("_")[1]);
+    const rows = await Promise.all(ids.map((id) => readJson<Payment>(payPath(id))));
+    return rows.flatMap((r) => (r ? [r.data] : []));
   },
 
   async approvedPaymentsByTransaction(tx) {

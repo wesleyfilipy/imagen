@@ -174,3 +174,14 @@ describe("credencial OIDC em segundo plano", () => {
     }
   });
 });
+
+describe("diagnóstico", () => {
+  beforeEach(() => store.clear());
+  it("recentPayments devolve os mais recentes primeiro", async () => {
+    const a = await r.insertPayment(payment("d1"));
+    await new Promise((res) => setTimeout(res, 5));
+    const b = await r.insertPayment(payment("d2", { status: "other" }));
+    expect((await r.recentPayments(10)).map((p) => p.id)).toEqual([b!.id, a!.id]);
+    expect(await r.recentPayments(1)).toHaveLength(1);
+  });
+});

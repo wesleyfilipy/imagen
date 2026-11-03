@@ -145,6 +145,9 @@ export const fileRepo: Repo = {
   unassignedApprovedPaymentsByEmail: (email) =>
     withDb((db) => clone(db.payments.filter((x) => x.email === email && x.status === "approved" && !x.generation_id))),
 
+  recentPayments: (limit) =>
+    withDb((db) => clone([...db.payments].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit))),
+
   approvedPaymentsByTransaction: (tx) =>
     withDb((db) => clone(db.payments.filter((x) => x.transaction_id === tx && x.status === "approved"))),
 };
