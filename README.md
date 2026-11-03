@@ -1,4 +1,4 @@
-# Birthday AI Studio
+﻿# Birthday AI Studio
 
 Mini SaaS que transforma uma foto comum em um ensaio fotográfico de aniversário com IA (OpenAI).
 O cliente vê a prévia grátis e paga **R$ 19,90** (Lastlink) para baixar a foto em alta resolução.
@@ -63,7 +63,7 @@ Coloque o site atrás de HTTPS, que é obrigatório para o cookie seguro e para 
 | `OPENAI_IMAGE_MODEL` | `gpt-image-2` (padrão). Alternativas: `gpt-image-2.5-sunburst`, `gpt-image-2.5-flare`, `gpt-image-1.5` |
 | `OPENAI_IMAGE_SIZE` | `1536x2304` (padrão, retrato 2:3). No `gpt-image-1.5`, use `1024x1536` |
 | `OPENAI_IMAGE_QUALITY` | `high` |
-| `LASTLINK_CHECKOUT_URL` | link de checkout do produto de R$ 19,90 |
+| `LASTLINK_CHECKOUT_URL` | link de checkout do produto de R$ 19,90 (padrão: `https://lastlink.com/p/C3AA92C82/checkout-payment/`) |
 | `LASTLINK_WEBHOOK_TOKEN` | token aleatório longo, que vai na URL do webhook |
 | `LASTLINK_APPROVED_EVENTS` / `LASTLINK_REFUND_EVENTS` | nomes exatos dos eventos (recomendado; veja abaixo) |
 | `LASTLINK_PRODUCT_ID` | opcional: só libera eventos deste produto |
@@ -79,7 +79,7 @@ Para gerar um token: `node -e "console.log(require('crypto').randomBytes(32).toS
 
 ## Lastlink
 
-1. Crie o produto de R$ 19,90 e coloque o link de checkout em `LASTLINK_CHECKOUT_URL`.
+1. O link de checkout do produto de R$ 19,90 já está configurado (`https://lastlink.com/p/C3AA92C82/checkout-payment/`). Para trocar, use `LASTLINK_CHECKOUT_URL`.
 2. Cadastre o webhook com a URL `https://SEU-DOMINIO/api/webhooks/lastlink?token=SEU_LASTLINK_WEBHOOK_TOKEN`.
 3. Se a Lastlink permitir uma página de obrigado, use `https://SEU-DOMINIO/obrigado`.
 4. Envie um webhook de teste e procure no log do servidor a linha `[lastlink] evento recebido`. Copie o nome exato do evento de compra aprovada para `LASTLINK_APPROVED_EVENTS` e o de estorno para `LASTLINK_REFUND_EVENTS`.

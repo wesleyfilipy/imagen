@@ -33,9 +33,8 @@ export const env = {
     return v === "high" || v === "low" ? v : undefined;
   },
 
-
   get checkoutUrl() {
-    return process.env.LASTLINK_CHECKOUT_URL || "";
+    return process.env.LASTLINK_CHECKOUT_URL || "https://lastlink.com/p/C3AA92C82/checkout-payment/";
   },
   get webhookToken() {
     return process.env.LASTLINK_WEBHOOK_TOKEN || "";
