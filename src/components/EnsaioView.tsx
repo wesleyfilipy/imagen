@@ -33,23 +33,33 @@ export function EnsaioView({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   const [awaitingPayment, setAwaitingPayment] = useState(false);
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/generations/${id}`, { cache: "no-store" });
-    if (res.status === 404) return setNotFound(true);
-    if (res.ok) setView(await res.json());
-  }, [id]);
+  const load = useCallback(
+    async (check = false) => {
+      const res = await fetch(`/api/generations/${id}${check ? "?check=1" : ""}`, { cache: "no-store" });
+      if (res.status === 404) return setNotFound(true);
+      if (res.ok) setView(await res.json());
+    },
+    [id],
+  );
 
   useEffect(() => {
-    load();
+    load(true);
   }, [load]);
 
-  // Polling: rápido durante a geração; mais lento aguardando pagamento.
+  // Polling: durante a geração e aguardando pagamento. Intervalos moderados para economizar
+  // operações do armazenamento; a cada ~30 s também procura pagamento ainda sem vínculo.
   const processing = view?.status === "pending" || view?.status === "processing";
   const waitingPay = view?.status === "completed" && !view.paid && (awaitingPayment || view.checkoutStarted);
   useEffect(() => {
     if (!processing && !waitingPay) return;
-    const t = setInterval(load, processing ? 2500 : 5000);
-    const onFocus = () => load();
+    let ticks = 0;
+    const startedAt = Date.now();
+    const t = setInterval(() => {
+      // aguardando pagamento: para de consultar sozinho após 20 min (botão "Verificar agora" continua)
+      if (!processing && Date.now() - startedAt > 20 * 60 * 1000) return clearInterval(t);
+      load(!processing && ++ticks % 5 === 0);
+    }, processing ? 4000 : 6000);
+    const onFocus = () => load(!processing);
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(t);
@@ -98,7 +108,7 @@ export function EnsaioView({ id }: { id: string }) {
         {view.paid ? (
           <Unlocked view={view} />
         ) : (
-          <Paywall view={view} onCheckoutOpened={() => setAwaitingPayment(true)} waiting={waitingPay} onRefresh={load} />
+          <Paywall view={view} onCheckoutOpened={() => setAwaitingPayment(true)} waiting={waitingPay} onRefresh={() => load(true)} />
         )}
       </div>
     </div>

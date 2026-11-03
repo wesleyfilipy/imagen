@@ -75,8 +75,12 @@ export interface GenerationView {
   checkoutStarted: boolean;
 }
 
-export async function toView(g: Generation): Promise<GenerationView> {
-  if (!g.paid_at && g.email) {
+/**
+ * `checkOrphan`: também procura pagamento aprovado ainda sem vínculo (custa uma listagem no
+ * armazenamento, por isso o cliente só pede isso de vez em quando — o caminho normal é o webhook).
+ */
+export async function toView(g: Generation, checkOrphan = false): Promise<GenerationView> {
+  if (checkOrphan && !g.paid_at && g.email) {
     if (await claimOrphanPayment(g)) g = (await repo().getGeneration(g.id)) ?? g;
   }
   return {
