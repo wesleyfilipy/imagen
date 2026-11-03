@@ -46,7 +46,7 @@ Arquivos com mais de `RETENTION_DAYS` dias (padrão 7) são apagados automaticam
 
 **Na Vercel (recomendado):**
 
-1. Em *Storage → Create → Blob*, crie um Blob Store e conecte ao projeto. Isso cria `BLOB_READ_WRITE_TOKEN` automaticamente. O site grava fotos e pagamentos nele, sempre como privados.
+1. Em *Storage → Create → Blob*, crie um Blob Store e conecte ao projeto. Isso cria `BLOB_STORE_ID` (ou `BLOB_READ_WRITE_TOKEN`) automaticamente. O site grava fotos e pagamentos nele, sempre como privados.
 2. Em *Settings → Environment Variables*, cadastre no mínimo `OPENAI_API_KEY` e `LASTLINK_WEBHOOK_TOKEN`. As demais são opcionais.
 3. Faça *Redeploy*.
 

@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Simulação em memória do @vercel/blob com as mesmas regras de allowOverwrite / ifMatch.
 const store = new Map<string, { body: string; etag: string; access: string }>();
 let etagSeq = 0;
+const seenOpts: Record<string, unknown>[] = [];
 
 vi.mock("server-only", () => ({}));
+vi.mock("@vercel/oidc", () => ({ getVercelOidcToken: async () => "tok-123" }));
 vi.mock("@vercel/blob", () => {
   class BlobPreconditionFailedError extends Error {}
   const toText = async (b: unknown) => (typeof b === "string" ? b : Buffer.from(b as Buffer).toString("latin1"));
   return {
     BlobPreconditionFailedError,
     async put(pathname: string, body: unknown, o: { access: string; allowOverwrite?: boolean; ifMatch?: string }) {
+      seenOpts.push(o);
       const text = await toText(body);
       // verificação + gravação sem await no meio (atômico, como no servidor real)
       const cur = store.get(pathname);
@@ -21,6 +24,7 @@ vi.mock("@vercel/blob", () => {
       return { pathname, etag };
     },
     async get(pathname: string, o: { access: string }) {
+      seenOpts.push(o);
       const cur = store.get(pathname);
       if (!cur) return null;
       if (cur.access !== o.access) throw new Error("access mismatch");
@@ -43,7 +47,7 @@ vi.mock("@vercel/blob", () => {
   };
 });
 
-const { blobRepo: r, blobStorage: s } = await import("@/lib/repo/blob");
+const { blobRepo: r, blobStorage: s, bindBlobAuth } = await import("@/lib/repo/blob");
 
 const base = (id: string, extra = {}) => ({
   id,
@@ -141,5 +145,28 @@ describe("driver Vercel Blob", () => {
     expect(await r.getGeneration("old")).toBeNull();
     expect([...store.keys()].some((k) => k.includes("old"))).toBe(false);
     expect(await r.getGeneration("new")).not.toBeNull();
+  });
+});
+
+describe("credencial OIDC em segundo plano", () => {
+  it("repassa o token capturado na requisição para todas as chamadas", async () => {
+    process.env.BLOB_STORE_ID = "store_teste";
+    try {
+      const withAuth = await bindBlobAuth();
+      seenOpts.length = 0;
+      await withAuth(async () => {
+        await new Promise((res) => setTimeout(res, 5)); // simula "depois da resposta"
+        await r.createGeneration(base("bg1"));
+        await r.getGeneration("bg1");
+      });
+      expect(seenOpts.length).toBeGreaterThan(3);
+      expect(seenOpts.every((o) => o.oidcToken === "tok-123" && o.storeId === "store_teste")).toBe(true);
+
+      seenOpts.length = 0;
+      await r.getGeneration("bg1"); // fora do executor: deixa o SDK resolver sozinho
+      expect(seenOpts[0].oidcToken).toBeUndefined();
+    } finally {
+      delete process.env.BLOB_STORE_ID;
+    }
   });
 });

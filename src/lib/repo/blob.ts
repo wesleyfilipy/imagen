@@ -12,16 +12,35 @@ import "server-only";
  * Atualizações usam ETag (ifMatch) → sem condições de corrida em pagamento/vínculo.
  */
 import { BlobPreconditionFailedError, del, get, head, list, put } from "@vercel/blob";
+import { getVercelOidcToken } from "@vercel/oidc";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import type { Generation, NewGeneration, NewPayment, Payment, Repo, Storage } from "./types";
 
 const ACCESS = "private" as const;
+
+/*
+ * Autenticação OIDC (BLOB_STORE_ID): o token vem do cabeçalho da requisição. Para tarefas em segundo
+ * plano (after), capturamos o token durante a requisição e o repassamos explicitamente.
+ */
+const authCtx = new AsyncLocalStorage<string>();
+const auth = () => {
+  const oidcToken = authCtx.getStore();
+  return oidcToken && process.env.BLOB_STORE_ID ? { oidcToken, storeId: process.env.BLOB_STORE_ID } : {};
+};
+
+/** Chame durante a requisição; devolve um executor que mantém a credencial em segundo plano. */
+export async function bindBlobAuth(): Promise<<T>(fn: () => Promise<T>) => Promise<T>> {
+  const token = process.env.BLOB_STORE_ID ? await getVercelOidcToken().catch(() => undefined) : undefined;
+  return (fn) => (token ? authCtx.run(token, fn) : fn());
+}
+
 const h = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
 const ts = (iso: string) => String(Date.parse(iso)).padStart(15, "0");
 const now = () => new Date().toISOString();
 
 async function readText(pathname: string): Promise<{ text: string; etag: string } | null> {
-  const r = await get(pathname, { access: ACCESS, useCache: false });
+  const r = await get(pathname, { access: ACCESS, useCache: false, ...auth() });
   if (!r || r.statusCode !== 200) return null;
   return { text: await new Response(r.stream).text(), etag: r.blob.etag };
 }
@@ -37,6 +56,7 @@ async function writeJson(pathname: string, data: unknown, ifMatch?: string) {
     addRandomSuffix: false,
     contentType: "application/json",
     cacheControlMaxAge: 60,
+    ...auth(),
     ...(ifMatch ? { ifMatch } : { allowOverwrite: true }),
   });
 }
@@ -44,23 +64,23 @@ async function writeJson(pathname: string, data: unknown, ifMatch?: string) {
 /** Cria o blob somente se ainda não existir. Retorna false se já existia. */
 async function createOnly(pathname: string, body = "1"): Promise<boolean> {
   try {
-    await put(pathname, body, { access: ACCESS, addRandomSuffix: false, allowOverwrite: false, contentType: "text/plain" });
+    await put(pathname, body, { access: ACCESS, addRandomSuffix: false, allowOverwrite: false, contentType: "text/plain", ...auth() });
     return true;
   } catch (err) {
-    const exists = await head(pathname).then(() => true, () => false);
+    const exists = await head(pathname, auth()).then(() => true, () => false);
     if (exists) return false;
     throw err;
   }
 }
 
 const marker = (pathname: string) =>
-  put(pathname, "1", { access: ACCESS, addRandomSuffix: false, allowOverwrite: true, contentType: "text/plain" });
+  put(pathname, "1", { access: ACCESS, addRandomSuffix: false, allowOverwrite: true, contentType: "text/plain", ...auth() });
 
 async function listPathnames(prefix: string): Promise<string[]> {
   const out: string[] = [];
   let cursor: string | undefined;
   do {
-    const r = await list({ prefix, cursor, limit: 1000 });
+    const r = await list({ prefix, cursor, limit: 1000, ...auth() });
     out.push(...r.blobs.map((b) => b.pathname));
     cursor = r.hasMore ? r.cursor : undefined;
   } while (cursor);
@@ -179,13 +199,16 @@ export const blobRepo: Repo = {
     const g = await this.getGeneration(id);
     if (!g) return;
     const t = ts(g.created_at);
-    await del([
-      genPath(id),
-      `${idx.session(g.session_hash)}${t}_${id}`,
-      `${idx.ip(g.ip_hash)}${t}_${id}`,
-      `${idx.expires}${ts(g.expires_at)}_${id}`,
-      ...(g.email ? [`${idx.email(g.email)}${id}`] : []),
-    ]);
+    await del(
+      [
+        genPath(id),
+        `${idx.session(g.session_hash)}${t}_${id}`,
+        `${idx.ip(g.ip_hash)}${t}_${id}`,
+        `${idx.expires}${ts(g.expires_at)}_${id}`,
+        ...(g.email ? [`${idx.email(g.email)}${id}`] : []),
+      ],
+      auth(),
+    );
   },
 
   async insertPayment(p: NewPayment) {
@@ -223,14 +246,14 @@ export const blobRepo: Repo = {
 
 export const blobStorage: Storage = {
   async upload(path, data, contentType) {
-    await put(`files/${path}`, data, { access: ACCESS, addRandomSuffix: false, allowOverwrite: true, contentType });
+    await put(`files/${path}`, data, { access: ACCESS, addRandomSuffix: false, allowOverwrite: true, contentType, ...auth() });
   },
   async download(path) {
-    const r = await get(`files/${path}`, { access: ACCESS });
+    const r = await get(`files/${path}`, { access: ACCESS, ...auth() });
     if (!r || r.statusCode !== 200) throw new Error(`[blob] arquivo não encontrado: ${path}`);
     return Buffer.from(await new Response(r.stream).arrayBuffer());
   },
   async remove(paths) {
-    if (paths.length) await del(paths.map((p) => `files/${p}`));
+    if (paths.length) await del(paths.map((p) => `files/${p}`), auth());
   },
 };

@@ -5,7 +5,7 @@ import { isMockAi } from "@/lib/ai";
 import { jsonError, paths, processGeneration } from "@/lib/generations";
 import { normalizeUpload, UploadError, MAX_UPLOAD_BYTES } from "@/lib/image";
 import { buildPrompt, sanitizeCustomPrompt } from "@/lib/prompts";
-import { ConfigError, maybeCleanup, repo, storage } from "@/lib/repo";
+import { bindBlobAuth, ConfigError, maybeCleanup, repo, storage } from "@/lib/repo";
 import { getClientIpHash, getOrCreateSessionHash } from "@/lib/session";
 import { getStyle, MAX_AGE, MIN_AGE } from "@/lib/styles";
 
@@ -81,10 +81,13 @@ async function create(req: Request) {
   });
   await r.updateGeneration(id, { original_path: p.original });
 
-  after(async () => {
-    await processGeneration(id);
-    await maybeCleanup();
-  });
+  const withAuth = await bindBlobAuth(); // credencial do Blob válida também em segundo plano
+  after(() =>
+    withAuth(async () => {
+      await processGeneration(id);
+      await maybeCleanup();
+    }),
+  );
 
   return NextResponse.json({ id }, { status: 201 });
 }
