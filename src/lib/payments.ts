@@ -31,7 +31,8 @@ export async function handleLastlinkWebhook(rawBody: string, payload: unknown): 
   let status: PaymentStatus = ev.kind;
   let note: string | null = null;
 
-  if (status === "approved" && ev.isTest && !env.acceptTestEvents) {
+  // Eventos de teste não liberam nem revogam nada (LASTLINK_ACCEPT_TEST_EVENTS=false)
+  if ((status === "approved" || status === "refunded") && ev.isTest && !env.acceptTestEvents) {
     status = "ignored";
     note = "evento de teste ignorado (LASTLINK_ACCEPT_TEST_EVENTS=false)";
   }

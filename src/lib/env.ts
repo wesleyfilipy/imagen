@@ -43,11 +43,15 @@ export const env = {
   get productId() {
     return (process.env.LASTLINK_PRODUCT_ID || "").trim();
   },
+  // Nomes reais enviados pela Lastlink (confirmados com webhooks de teste em 03/11/2026):
+  // Compra Completa → Purchase_Order_Confirmed; Reembolsado → Payment_Refund; Estornado → Payment_Chargeback.
   get approvedEvents() {
-    return list("LASTLINK_APPROVED_EVENTS");
+    const v = list("LASTLINK_APPROVED_EVENTS");
+    return v.length ? v : ["purchase_order_confirmed"];
   },
   get refundEvents() {
-    return list("LASTLINK_REFUND_EVENTS");
+    const v = list("LASTLINK_REFUND_EVENTS");
+    return v.length ? v : ["payment_refund", "payment_chargeback"];
   },
   get acceptTestEvents() {
     return process.env.LASTLINK_ACCEPT_TEST_EVENTS === "true";
