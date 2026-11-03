@@ -10,7 +10,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Generation, NewGeneration, NewPayment, Payment, Repo, Storage } from "./types";
 
-const ROOT = path.resolve(process.env.DATA_DIR || path.join(process.cwd(), ".data"));
+// turbopackIgnore: a pasta é definida em tempo de execução; sem isso o build empacotaria o projeto inteiro.
+const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), ".data"));
 const DB_FILE = path.join(ROOT, "db.json");
 const FILES = path.join(ROOT, "storage");
 

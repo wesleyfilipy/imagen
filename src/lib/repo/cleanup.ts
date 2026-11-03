@@ -1,11 +1,13 @@
 import "server-only";
-import { fileRepo as r, fileStorage as s } from "./file";
+import { repo, storage } from "./driver";
 
 const g = globalThis as unknown as { __basLastCleanup?: number };
 const EVERY_MS = 60 * 60 * 1000;
 
 /** Remove fotos (original, gerada, prévia) e registros de ensaios expirados. */
 export async function cleanupExpired(): Promise<{ deleted: number; failed: number }> {
+  const r = repo();
+  const s = storage();
   const expired = await r.listExpiredGenerations(new Date().toISOString(), 500);
   let deleted = 0;
   for (const gen of expired) {

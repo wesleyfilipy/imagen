@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 
 function int(name: string, fallback: number): number {
   const n = Number(process.env[name]);
@@ -53,9 +54,10 @@ export const env = {
   },
 
   get sessionSecret() {
+    // Opcional: sem SESSION_SECRET, deriva um segredo estável da chave da OpenAI (usado só para hash de IP).
     const s = process.env.SESSION_SECRET;
-    if (!s && isProduction) throw new Error("SESSION_SECRET não configurado");
-    return s || "dev-only-session-secret";
+    if (s) return s;
+    return createHash("sha256").update(`bas-session:${process.env.OPENAI_API_KEY || "dev"}`).digest("hex");
   },
   get cronSecret() {
     return process.env.CRON_SECRET || "";

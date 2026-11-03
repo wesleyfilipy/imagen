@@ -2,9 +2,9 @@
 
 Mini SaaS que transforma uma foto comum em um ensaio fotográfico de aniversário com IA (OpenAI).
 O cliente vê a prévia grátis e paga **R$ 19,90** (Lastlink) para baixar a foto em alta resolução.
-**Sem login, sem cadastro e sem banco de dados externo.**
+**Sem login, sem cadastro e sem banco de dados.**
 
-**Stack:** Next.js 16 · TypeScript · Tailwind CSS 4 · OpenAI Images API (edição usando a foto como referência) · armazenamento em disco · Lastlink (checkout + webhook).
+**Stack:** Next.js 16 · TypeScript · Tailwind CSS 4 · OpenAI Images API (edição usando a foto como referência) · Vercel Blob privado (ou disco local) · Lastlink (checkout + webhook).
 
 ---
 
@@ -35,7 +35,7 @@ Durante o desenvolvimento use `npm run dev`. Sem `OPENAI_API_KEY`, o modo dev us
 
 ### Onde os dados ficam
 
-Tudo fica em `DATA_DIR` (padrão `./.data`):
+Na Vercel, tudo fica no Blob Store privado. Fora dela, tudo fica em `DATA_DIR` (padrão `./.data`):
 
 - `db.json`: ensaios e pagamentos;
 - `storage/`: fotos. Fica fora de `public/`, então só sai pelas rotas protegidas.
@@ -44,14 +44,16 @@ Arquivos com mais de `RETENTION_DAYS` dias (padrão 7) são apagados automaticam
 
 ### Hospedagem
 
-O app precisa de **um processo Node com disco persistente**. Opções:
+**Na Vercel (recomendado):**
 
-- **VPS** (Hostinger, DigitalOcean, Contabo…): `npm run build && npm start`, com PM2 e **uma única instância**, sem modo cluster.
-- **Railway / Render / Fly.io**: crie um **volume** e aponte `DATA_DIR` para ele, por exemplo `/data`.
+1. Em *Storage → Create → Blob*, crie um Blob Store e conecte ao projeto. Isso cria `BLOB_READ_WRITE_TOKEN` automaticamente. O site grava fotos e pagamentos nele, sempre como privados.
+2. Em *Settings → Environment Variables*, cadastre no mínimo `OPENAI_API_KEY` e `LASTLINK_WEBHOOK_TOKEN`. As demais são opcionais.
+3. Faça *Redeploy*.
 
-**Vercel não serve neste modo:** o disco das funções serverless é temporário e não é compartilhado entre requisições. Para usar a Vercel, seria preciso adicionar um armazenamento externo (Vercel Blob, Supabase etc.).
+**Em VPS / Railway / Render / Fly.io:** sem Blob, o site usa o disco em `DATA_DIR`. Use um volume persistente e **uma única instância**, depois rode `npm run build && npm start`.
 
-Coloque o site atrás de HTTPS, que é obrigatório para o cookie seguro e para o webhook.
+Use sempre HTTPS: é obrigatório para o cookie seguro e para o webhook.
+
 
 ---
 
@@ -68,7 +70,8 @@ Coloque o site atrás de HTTPS, que é obrigatório para o cookie seguro e para 
 | `LASTLINK_APPROVED_EVENTS` / `LASTLINK_REFUND_EVENTS` | nomes exatos dos eventos (recomendado; veja abaixo) |
 | `LASTLINK_PRODUCT_ID` | opcional: só libera eventos deste produto |
 | `LASTLINK_ACCEPT_TEST_EVENTS` | `false` em produção |
-| `SESSION_SECRET`, `CRON_SECRET` | strings aleatórias longas |
+| `SESSION_SECRET` | opcional (hash de IP); sem ele, é derivado da chave da OpenAI |
+| `CRON_SECRET` | opcional; protege a limpeza diária (`vercel.json`) |
 | `DATA_DIR` | pasta de dados (volume persistente) |
 | `RETENTION_DAYS` | dias até excluir fotos e registros |
 | `MAX_GENERATIONS_PER_IP_PER_DAY` / `..._PER_SESSION_PER_DAY` | limite de prévias grátis, porque cada geração custa na OpenAI |
