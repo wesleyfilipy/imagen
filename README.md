@@ -83,7 +83,7 @@ Para gerar um token: `node -e "console.log(require('crypto').randomBytes(32).toS
 ## Lastlink
 
 1. O link de checkout do produto de R$ 19,90 já está configurado (`https://lastlink.com/p/C3AA92C82/checkout-payment/`). Para trocar, use `LASTLINK_CHECKOUT_URL`.
-2. Cadastre o webhook com a URL `https://SEU-DOMINIO/api/webhooks/lastlink?token=SEU_LASTLINK_WEBHOOK_TOKEN`.
+2. Copie o **Token** que a Lastlink mostra na tela do webhook e cadastre-o como `LASTLINK_WEBHOOK_TOKEN` na Vercel. Depois coloque como URL do webhook `https://SEU-DOMINIO/api/webhooks/lastlink?token=ESSE_TOKEN`, trocando `SEU-DOMINIO` pelo endereço real do site (ex.: `meusite.vercel.app`).
 3. Se a Lastlink permitir uma página de obrigado, use `https://SEU-DOMINIO/obrigado`.
 4. Envie um webhook de teste e procure no log do servidor a linha `[lastlink] evento recebido`. Copie o nome exato do evento de compra aprovada para `LASTLINK_APPROVED_EVENTS` e o de estorno para `LASTLINK_REFUND_EVENTS`.
 5. Faça uma compra real de ponta a ponta antes de divulgar.

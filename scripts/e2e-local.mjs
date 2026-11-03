@@ -127,6 +127,13 @@ check((await http("/api/webhooks/lastlink", { method: "POST", body: JSON.stringi
 check((await webhook(approved(), "token-errado-1234567890")).status === 401, "token errado → 401");
 check((await status(id)).paid === false, "continua bloqueado após tentativas falsas");
 
+const neutral = { Id: `evt_n_${Date.now()}`, Event: "Fatura Criada", Data: { Buyer: { Email: EMAIL } } };
+const viaHeader = await http("/api/webhooks/lastlink", { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${TOKEN}` }, body: JSON.stringify(neutral) }, false);
+check(viaHeader.status === 200, "token no cabeçalho Authorization é aceito");
+const viaBody = await http("/api/webhooks/lastlink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...neutral, Id: `${neutral.Id}b`, Token: TOKEN }) }, false);
+check(viaBody.status === 200, "token dentro do JSON é aceito");
+check((await status(id)).paid === false, "evento neutro (fatura criada) não libera");
+
 await webhook({ ...approved(), IsTest: true });
 check((await status(id)).paid === false, "evento de teste não libera (LASTLINK_ACCEPT_TEST_EVENTS=false)");
 
