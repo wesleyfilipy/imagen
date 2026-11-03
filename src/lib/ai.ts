@@ -2,6 +2,7 @@ import "server-only";
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
 import { env, isProduction } from "./env";
+import { ConfigError } from "./repo/driver";
 
 export class GenerationError extends Error {
   constructor(public userMessage: string, cause?: unknown) {
@@ -17,7 +18,7 @@ function openai(): OpenAI {
 
 export function isMockAi(): boolean {
   if (env.openaiKey) return false;
-  if (isProduction) throw new Error("OPENAI_API_KEY não configurada");
+  if (isProduction) throw new ConfigError("OPENAI_API_KEY não configurada no servidor (Settings → Environment Variables) — faça Redeploy após cadastrar.");
   return true;
 }
 

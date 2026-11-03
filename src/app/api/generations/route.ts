@@ -5,7 +5,7 @@ import { isMockAi } from "@/lib/ai";
 import { jsonError, paths, processGeneration } from "@/lib/generations";
 import { normalizeUpload, UploadError, MAX_UPLOAD_BYTES } from "@/lib/image";
 import { buildPrompt, sanitizeCustomPrompt } from "@/lib/prompts";
-import { maybeCleanup, repo, storage } from "@/lib/repo";
+import { ConfigError, maybeCleanup, repo, storage } from "@/lib/repo";
 import { getClientIpHash, getOrCreateSessionHash } from "@/lib/session";
 import { getStyle, MAX_AGE, MIN_AGE } from "@/lib/styles";
 
@@ -14,6 +14,16 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  try {
+    return await create(req);
+  } catch (err) {
+    console.error("[generations] erro ao criar ensaio", err);
+    if (err instanceof ConfigError) return jsonError(err.message, 503);
+    return jsonError("Erro no servidor ao iniciar seu ensaio. Tente novamente em instantes.", 500);
+  }
+}
+
+async function create(req: Request) {
   const len = Number(req.headers.get("content-length") ?? 0);
   if (len > MAX_UPLOAD_BYTES + 64 * 1024) return jsonError("A foto é muito grande. Envie uma imagem de até 4 MB.", 413);
 

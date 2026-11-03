@@ -3,6 +3,9 @@ import { blobRepo, blobStorage } from "./blob";
 import { fileRepo, fileStorage } from "./file";
 import type { Repo, Storage } from "./types";
 
+/** Erro de configuração do servidor — a mensagem é segura para mostrar ao usuário. */
+export class ConfigError extends Error {}
+
 /**
  * Vercel Blob quando configurado (obrigatório na Vercel, cujo disco não é persistente);
  * caso contrário, disco local em DATA_DIR (VPS, Railway/Render com volume, desenvolvimento).
@@ -10,8 +13,8 @@ import type { Repo, Storage } from "./types";
 function useBlob(): boolean {
   if (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) return true;
   if (process.env.VERCEL) {
-    throw new Error(
-      "Armazenamento não configurado: na Vercel, crie um Blob Store em Storage → Create → Blob e conecte-o a este projeto (depois faça Redeploy).",
+    throw new ConfigError(
+      "Armazenamento não configurado: na Vercel, crie um Blob Store em Storage → Create → Blob, conecte-o a este projeto e faça Redeploy.",
     );
   }
   return false;
