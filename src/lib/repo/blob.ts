@@ -11,7 +11,7 @@ import "server-only";
  *   lock/event/<hash>                idempotência de webhooks (criação exclusiva)
  * Atualizações usam ETag (ifMatch) → sem condições de corrida em pagamento/vínculo.
  */
-import { BlobPreconditionFailedError, del, get, head, list, put } from "@vercel/blob";
+import { BlobNotFoundError, BlobPreconditionFailedError, del, get, head, list, put } from "@vercel/blob";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
@@ -87,10 +87,32 @@ async function listPathnames(prefix: string): Promise<string[]> {
   return out;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const normEtag = (e: string) => e.replace(/^W\//, "").replace(/"/g, "");
+
+/**
+ * Lê conteúdo + ETag para uma atualização condicional. O ETag do cabeçalho do GET pode vir
+ * "fraco" (W/"…", resposta comprimida) e não serve para ifMatch; o de head() vem da mesma API
+ * da gravação. Confere que o conteúdo lido corresponde a esse ETag.
+ */
+async function readForUpdate<T>(pathname: string): Promise<{ data: T; etag: string } | null> {
+  for (let i = 0; ; i++) {
+    const meta = await head(pathname, auth()).catch((err) => {
+      if (err instanceof BlobNotFoundError) return null;
+      throw err;
+    });
+    if (!meta) return null;
+    const cur = await readJson<T>(pathname);
+    if (!cur) return null;
+    if (normEtag(cur.etag) === normEtag(meta.etag) || i >= 2) return { data: cur.data, etag: meta.etag };
+    await sleep(150); // gravação concorrente entre head e get: tenta de novo
+  }
+}
+
 /** Lê-modifica-grava com ETag; repete se outro processo alterou no meio. */
 async function mutate<T>(pathname: string, fn: (cur: T) => T | null): Promise<T | null> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const cur = await readJson<T>(pathname);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const cur = await readForUpdate<T>(pathname);
     if (!cur) return null;
     const next = fn(cur.data);
     if (next === null) return null; // condição não satisfeita: não grava
@@ -98,8 +120,8 @@ async function mutate<T>(pathname: string, fn: (cur: T) => T | null): Promise<T 
       await writeJson(pathname, next, cur.etag);
       return next;
     } catch (err) {
-      if (err instanceof BlobPreconditionFailedError) continue;
-      throw err;
+      if (!(err instanceof BlobPreconditionFailedError)) throw err;
+      await sleep(50 + Math.random() * 200 * (attempt + 1));
     }
   }
   throw new Error(`[blob] conflito persistente ao atualizar ${pathname}`);

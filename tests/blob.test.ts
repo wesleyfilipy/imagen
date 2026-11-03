@@ -9,9 +9,11 @@ vi.mock("server-only", () => ({}));
 vi.mock("@vercel/oidc", () => ({ getVercelOidcToken: async () => "tok-123" }));
 vi.mock("@vercel/blob", () => {
   class BlobPreconditionFailedError extends Error {}
+  class BlobNotFoundError extends Error {}
   const toText = async (b: unknown) => (typeof b === "string" ? b : Buffer.from(b as Buffer).toString("latin1"));
   return {
     BlobPreconditionFailedError,
+    BlobNotFoundError,
     async put(pathname: string, body: unknown, o: { access: string; allowOverwrite?: boolean; ifMatch?: string }) {
       seenOpts.push(o);
       const text = await toText(body);
@@ -28,11 +30,13 @@ vi.mock("@vercel/blob", () => {
       const cur = store.get(pathname);
       if (!cur) return null;
       if (cur.access !== o.access) throw new Error("access mismatch");
-      return { statusCode: 200, stream: new Response(cur.body).body, blob: { etag: cur.etag } };
+      // como na Vercel: JSON servido comprimido → ETag "fraco" no cabeçalho, diferente do usado em ifMatch
+      return { statusCode: 200, stream: new Response(cur.body).body, blob: { etag: `W/"${cur.etag}"` } };
     },
     async head(pathname: string) {
-      if (!store.has(pathname)) throw new Error("not found");
-      return { pathname };
+      const cur = store.get(pathname);
+      if (!cur) throw new BlobNotFoundError();
+      return { pathname, etag: cur.etag };
     },
     async list({ prefix = "", cursor, limit = 1000 }: { prefix?: string; cursor?: string; limit?: number }) {
       const all = [...store.keys()].filter((k) => k.startsWith(prefix)).sort();
