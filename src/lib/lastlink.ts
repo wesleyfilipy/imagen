@@ -55,6 +55,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi;
 
 const REFUND_RE = /(refund|chargeback|reembols|estorn|devolu|cancel|revers|dispute|contest)/i;
+// Eventos que citam reembolso/cancelamento mas NÃO são um estorno efetivado
+// (ex.: "Reembolso solicitado", "Período de reembolso terminado", "Pedido de compra cancelado").
+const REFUND_NOT_FINAL_RE = /(request|pedido|solicit|period|per[ií]odo|terminad|ended|over\b|expir)/i;
 const NOT_PAID_RE = /(pending|pendente|aguard|waiting|created|criad|expir|abandon|fail|falh|recus|refus|declin|denied|negad|unpaid|overdue|atras|request)/i;
 const APPROVED_RE = /(approv|aprovad|confirm|paid|pago|complet|conclu|success|sucesso|captur|authoriz|autoriz)/i;
 
@@ -82,7 +85,7 @@ export function parseLastlinkEvent(payload: unknown, opts: ParseOptions = {}): P
     else if (opts.approvedEvents?.includes(lowerType)) kind = "approved";
   } else {
     // Heurística: qualquer sinal de estorno/cancelamento vence; depois "não pago"; só então "aprovado".
-    if (kindCandidates.some((v) => REFUND_RE.test(v))) kind = "refunded";
+    if (kindCandidates.some((v) => REFUND_RE.test(v) && !REFUND_NOT_FINAL_RE.test(v))) kind = "refunded";
     else if (kindCandidates.some((v) => NOT_PAID_RE.test(v))) kind = "other";
     else if (kindCandidates.some((v) => APPROVED_RE.test(v))) kind = "approved";
   }

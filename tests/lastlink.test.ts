@@ -37,6 +37,21 @@ describe("parseLastlinkEvent", () => {
     }
   });
 
+  it("pedido de reembolso / fim do período de reembolso não revogam nem liberam", () => {
+    for (const event of ["Refund_Requested", "Reembolso solicitado", "Refund_Period_Over", "Periodo de Reembolso Terminado", "Purchase_Request_Canceled", "Pedido de Compra Cancelado"]) {
+      expect(parseLastlinkEvent({ Event: event, Buyer: { Email: "a@b.co" } }).kind, event).toBe("other");
+    }
+  });
+
+  it("nomes em português do painel da Lastlink", () => {
+    expect(parseLastlinkEvent({ Event: "Compra Completa" }).kind).toBe("approved");
+    expect(parseLastlinkEvent({ Event: "Pagamento Reembolsado" }).kind).toBe("refunded");
+    expect(parseLastlinkEvent({ Event: "Pagamento Estornado" }).kind).toBe("refunded");
+    for (const event of ["Carrinho Abandonado", "Fatura Criada", "Pedido de Compra Expirada", "Início liberação de acesso"]) {
+      expect(parseLastlinkEvent({ Event: event }).kind, event).toBe("other");
+    }
+  });
+
   it("pendente / aguardando pagamento não libera", () => {
     for (const event of ["Purchase_Request_Created", "pix_pending", "aguardando_pagamento", "payment_failed"]) {
       expect(parseLastlinkEvent({ Event: event, Buyer: { Email: "a@b.co" } }).kind).toBe("other");
