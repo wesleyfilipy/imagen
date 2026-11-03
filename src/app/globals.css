@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  --color-cream: #fffaf6;
+  --color-blush-50: #fff5f7;
+  --color-blush-100: #ffe8ee;
+  --color-blush-200: #fbd3de;
+  --color-blush-300: #f7b3c6;
+  --color-blush-400: #ef8fab;
+  --color-blush-500: #e26b8f;
+  --color-blush-600: #c94f75;
+  --color-gold-100: #f8eed6;
+  --color-gold-200: #efdcaa;
+  --color-gold-300: #e3c27a;
+  --color-gold-400: #d4a64a;
+  --color-gold-500: #b8862f;
+  --color-gold-600: #94681f;
+  --color-ink: #2b2024;
+  --color-ink-soft: #6b5a60;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-fade-up: fade-up 0.6s ease-out both;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+    50% { transform: translateY(-12px) rotate(var(--r, 0deg)); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream text-ink font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-blush-200 text-ink;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.14em] text-white
+      bg-gradient-to-r from-blush-500 via-blush-400 to-gold-400 bg-[length:200%_100%] bg-left
+      shadow-[0_10px_30px_-10px_rgba(226,107,143,0.65)] transition-all duration-300
+      hover:bg-right hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(226,107,143,0.75)]
+      active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold-300/70 bg-white/70 px-6 py-3 text-sm font-semibold
+      text-ink backdrop-blur transition-all duration-300 hover:border-gold-400 hover:bg-white hover:-translate-y-0.5 cursor-pointer
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .card {
+    @apply rounded-3xl border border-white/80 bg-white/75 shadow-[0_20px_60px_-30px_rgba(148,104,31,0.35)] backdrop-blur-xl;
+  }
+  .gold-text {
+    @apply bg-gradient-to-r from-gold-500 via-gold-300 to-gold-500 bg-clip-text text-transparent;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-gold-200 bg-white px-5 py-4 text-base text-ink outline-none transition
+      placeholder:text-ink-soft/50 focus:border-blush-400 focus:ring-4 focus:ring-blush-100;
+  }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.3em] text-gold-500;
+  }
+}
