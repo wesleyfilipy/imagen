@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { generateEnsaio, GenerationError } from "./ai";
 import { makeFinal, makePreview } from "./image";
 import { claimOrphanPayment, isUnlocked } from "./payments";
-import { repo, storage, type Generation } from "./repo";
+import { describeServerError, repo, storage, type Generation } from "./repo";
 import { getSessionHash } from "./session";
 import { getStyle } from "./styles";
 
@@ -55,7 +55,10 @@ export async function processGeneration(id: string): Promise<void> {
     await r.updateGeneration(id, { status: "completed", result_path: p.result, preview_path: p.preview, error: null });
   } catch (err) {
     console.error("[generation] falhou", id, err);
-    const message = err instanceof GenerationError ? err.userMessage : "Não foi possível criar seu ensaio agora. Tente novamente.";
+    const message =
+      err instanceof GenerationError
+        ? err.userMessage
+        : (describeServerError(err) ?? "Não foi possível criar seu ensaio agora. Tente novamente.");
     await r.updateGeneration(id, { status: "failed", error: message });
   }
 }

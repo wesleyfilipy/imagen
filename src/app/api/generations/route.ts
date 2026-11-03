@@ -5,7 +5,7 @@ import { isMockAi } from "@/lib/ai";
 import { jsonError, paths, processGeneration } from "@/lib/generations";
 import { normalizeUpload, UploadError, MAX_UPLOAD_BYTES } from "@/lib/image";
 import { buildPrompt, sanitizeCustomPrompt } from "@/lib/prompts";
-import { bindBlobAuth, ConfigError, maybeCleanup, repo, storage } from "@/lib/repo";
+import { bindBlobAuth, describeServerError, maybeCleanup, repo, storage } from "@/lib/repo";
 import { getClientIpHash, getOrCreateSessionHash } from "@/lib/session";
 import { getStyle, MAX_AGE, MIN_AGE } from "@/lib/styles";
 
@@ -18,7 +18,8 @@ export async function POST(req: Request) {
     return await create(req);
   } catch (err) {
     console.error("[generations] erro ao criar ensaio", err);
-    if (err instanceof ConfigError) return jsonError(err.message, 503);
+    const known = describeServerError(err);
+    if (known) return jsonError(known, 503);
     return jsonError("Erro no servidor ao iniciar seu ensaio. Tente novamente em instantes.", 500);
   }
 }
