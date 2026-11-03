@@ -61,6 +61,7 @@ const REFUND_NOT_FINAL_RE = /(request|pedido|solicit|period|per[ií]odo|terminad
 const NOT_PAID_RE = /(pending|pendente|aguard|waiting|created|criad|expir|abandon|fail|falh|recus|refus|declin|denied|negad|unpaid|overdue|atras|request)/i;
 const APPROVED_RE = /(approv|aprovad|confirm|paid|pago|complet|conclu|success|sucesso|captur|authoriz|autoriz)/i;
 
+const TOP_EVENT_KEYS = ["event", "eventtype", "eventname", "type", "evento"];
 const KIND_KEYS = new Set(["event", "eventtype", "eventname", "type", "evento", "tipo", "status", "paymentstatus", "purchasestatus", "orderstatus", "situacao", "trigger", "action"]);
 
 export function parseLastlinkEvent(payload: unknown, opts: ParseOptions = {}): ParsedLastlinkEvent {
@@ -74,7 +75,7 @@ export function parseLastlinkEvent(payload: unknown, opts: ParseOptions = {}): P
     .map((e) => e.value.trim())
     .filter(Boolean);
   const eventType =
-    strings.find((e) => e.path.length === 1 && ["event", "eventtype", "eventname", "type", "evento"].includes(e.key))?.value.trim() ??
+    strings.find((e) => e.path.length === 1 && TOP_EVENT_KEYS.includes(e.key))?.value.trim() ??
     kindCandidates[0] ??
     null;
 
@@ -84,10 +85,14 @@ export function parseLastlinkEvent(payload: unknown, opts: ParseOptions = {}): P
     if (opts.refundEvents?.includes(lowerType)) kind = "refunded";
     else if (opts.approvedEvents?.includes(lowerType)) kind = "approved";
   } else {
+    // Se há um nome de evento no topo do JSON, ele decide sozinho (campos internos como
+    // "status" de outros objetos não interferem). Sem ele, usa todos os candidatos.
+    const topEvent = strings.find((e) => e.path.length === 1 && TOP_EVENT_KEYS.includes(e.key))?.value.trim();
+    const pool = topEvent ? [topEvent] : kindCandidates;
     // Heurística: qualquer sinal de estorno/cancelamento vence; depois "não pago"; só então "aprovado".
-    if (kindCandidates.some((v) => REFUND_RE.test(v) && !REFUND_NOT_FINAL_RE.test(v))) kind = "refunded";
-    else if (kindCandidates.some((v) => NOT_PAID_RE.test(v))) kind = "other";
-    else if (kindCandidates.some((v) => APPROVED_RE.test(v))) kind = "approved";
+    if (pool.some((v) => REFUND_RE.test(v) && !REFUND_NOT_FINAL_RE.test(v))) kind = "refunded";
+    else if (pool.some((v) => NOT_PAID_RE.test(v))) kind = "other";
+    else if (pool.some((v) => APPROVED_RE.test(v))) kind = "approved";
   }
 
   // E-mail do comprador

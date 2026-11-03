@@ -87,3 +87,22 @@ describe("parseLastlinkEvent", () => {
     }
   });
 });
+
+describe("nome do evento no topo decide", () => {
+  it("status 'Pending'/'Created' em objetos internos não bloqueia uma compra completa", () => {
+    const ev = parseLastlinkEvent({
+      Event: "Purchase_Order_Confirmed",
+      Data: {
+        Buyer: { Email: "a@b.co" },
+        Subscription: { Status: "Created" },
+        Purchase: { Payment: { Status: "Pending" }, PaymentId: "p1" },
+      },
+    });
+    expect(ev.kind).toBe("approved");
+  });
+
+  it("sem nome de evento no topo, continua usando os campos internos", () => {
+    expect(parseLastlinkEvent({ data: { status: "paid", buyer: { email: "a@b.co" } } }).kind).toBe("approved");
+    expect(parseLastlinkEvent({ data: { status: "refunded" } }).kind).toBe("refunded");
+  });
+});

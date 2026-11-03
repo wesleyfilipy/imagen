@@ -25,6 +25,7 @@ export async function handleLastlinkWebhook(rawBody: string, payload: unknown): 
     hasEmail: Boolean(ev.email),
     transactionId: ev.transactionId,
     amountCents: ev.amountCents,
+    topKeys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 20) : typeof payload,
   });
 
   let status: PaymentStatus = ev.kind;
@@ -73,11 +74,13 @@ export async function handleLastlinkWebhook(rawBody: string, payload: unknown): 
       break;
     }
   }
+  const byUtm = Boolean(target);
   // 2) E-mail informado pelo cliente antes de ir ao checkout
   if (!target && ev.email) {
     target = (await r.unpaidGenerationsByEmail(ev.email))[0] ?? null;
   }
 
+  console.info("[lastlink] vínculo", { generationId: target?.id ?? null, via: target ? (byUtm ? "utm" : "email") : null });
   if (!target) {
     console.warn("[lastlink] pagamento aprovado sem ensaio correspondente — ficará pendente para o e-mail", ev.email);
     return { status, generationId: null, note: "pagamento aguardando vínculo" };
